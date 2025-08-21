@@ -3,11 +3,11 @@ package main
 import "os"
 
 type Config struct {
-	botToken string
+	apiEndpoint string
 }
 
 func loadConfig() Config {
 	var c Config
-	c.botToken = os.Getenv("BOT_TOKEN")
+	c.apiEndpoint = os.Getenv("API_ENDPOINT")
 	return c
 }
