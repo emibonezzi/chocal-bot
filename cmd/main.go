@@ -12,12 +12,19 @@ import (
 
 func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	// initialize env vars and bot
-	c := loadConfig()
+	c, err := loadConfig(ctx) // pass context object (that includes AWS creds and more) so config can read teams from S3
+	if err != nil {
+		log.Printf("Failed to read configuration: %v", err)
+		return events.APIGatewayProxyResponse{
+			StatusCode: 500,
+			Body:       "Failed to read configuration",
+		}, err
+	}
 	b := &Bot{Endpoint: c.apiEndpoint, Token: c.botToken}
 
 	// parse update coming from Telegram
 	var m NewMessageUpdate
-	err := json.Unmarshal([]byte(req.Body), &m)
+	err = json.Unmarshal([]byte(req.Body), &m)
 	if err != nil {
 		log.Printf("Failed to unmarshal update: %v", err)
 		return events.APIGatewayProxyResponse{
