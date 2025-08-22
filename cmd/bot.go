@@ -6,11 +6,20 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 )
 
 type Bot struct {
-	Endpoint string
-	Token    string
+	telegramEndpoint string
+	botToken         string
+	currentUser      User
+}
+
+type User struct {
+	id        int
+	firstName string
+	lastName  string
+	username  string
 }
 
 type NewMessageUpdate struct {
@@ -37,6 +46,29 @@ type NewMessageUpdate struct {
 	} `json:"message"`
 }
 
+// populate bot with useful and reusable values related to the user that is interacting with the bot
+func InitializeBot(body string) (Bot, error) {
+	var b Bot
+	b.telegramEndpoint = os.Getenv("API_ENDPOINT")
+	b.botToken = os.Getenv("BOT_TOKEN")
+	var m NewMessageUpdate
+	err := json.Unmarshal([]byte(body), &m)
+	if err != nil {
+		log.Printf("Failed to parse telegram update: %v", err)
+		return b, err
+	}
+
+	b.currentUser = User{
+		id:        m.Message.From.ID,
+		firstName: m.Message.From.FirstName,
+		lastName:  m.Message.From.LastName,
+		username:  m.Message.From.Username,
+	}
+
+	return b, err
+
+}
+
 func (b *Bot) SendText(text string, chatID int) (*http.Response, error) {
 	type RequestBody struct {
 		ChatID int    `json:"chat_id"`
@@ -53,7 +85,7 @@ func (b *Bot) SendText(text string, chatID int) (*http.Response, error) {
 		return &http.Response{}, err
 	}
 
-	url := fmt.Sprintf("%s/bot%s/sendMessage", b.Endpoint, b.Token)
+	url := fmt.Sprintf("%s/bot%s/sendMessage", b.telegramEndpoint, b.botToken)
 	payload := bytes.NewReader(body)
 	return http.Post(url, "application/json", payload)
 }

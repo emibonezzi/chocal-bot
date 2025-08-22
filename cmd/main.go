@@ -11,16 +11,25 @@ import (
 )
 
 func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	// initialize env vars and bot
+	// read teams.json from S3
 	c, err := loadConfig(ctx) // pass context object (that includes AWS creds and more) so config can read teams from S3
 	if err != nil {
-		log.Printf("Failed to read configuration: %v", err)
+		log.Printf("Failed to read teams.json: %v", err)
 		return events.APIGatewayProxyResponse{
 			StatusCode: 500,
-			Body:       "Failed to read configuration",
+			Body:       "Failed to read teams.json",
 		}, err
 	}
-	b := &Bot{Endpoint: c.apiEndpoint, Token: c.botToken}
+
+	fmt.Print(c.teamsList)
+
+	b, err := InitializeBot(req.Body)
+	if err != nil {
+		log.Printf("Failed to initialize bot: %v", err)
+		return events.APIGatewayProxyResponse{
+			StatusCode: 500,
+			Body:       "Failed to initialize Telegram Bot"}, err
+	}
 
 	// parse update coming from Telegram
 	var m NewMessageUpdate
@@ -37,10 +46,10 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	if m.Message.Text == "/start" {
 		message, err := b.SendText(fmt.Sprintf("Hello @%v", m.Message.From.Username), m.Message.Chat.ID)
 		if err != nil {
-			log.Printf("Failed to make http request: %v", err)
+			log.Printf("Failed to send text: %v", err)
 			return events.APIGatewayProxyResponse{
 				StatusCode: 500,
-				Body:       "Failed to make http request",
+				Body:       "Failed to send text",
 			}, err
 		}
 

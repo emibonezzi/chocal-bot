@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log"
-	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -12,9 +12,7 @@ import (
 )
 
 type Config struct {
-	apiEndpoint string
-	botToken    string
-	teamsList   []byte
+	teamsList TeamsList
 }
 
 type TeamsList struct {
@@ -29,9 +27,6 @@ type Team struct {
 
 func loadConfig(ctx context.Context) (Config, error) {
 	var c Config
-	// load env vars
-	c.apiEndpoint = os.Getenv("API_ENDPOINT")
-	c.botToken = os.Getenv("BOT_TOKEN")
 
 	// load teams list from s3
 	cfg, err := config.LoadDefaultConfig(ctx)
@@ -57,7 +52,11 @@ func loadConfig(ctx context.Context) (Config, error) {
 		return Config{}, err
 	}
 
-	c.teamsList = teams
+	err = json.Unmarshal(teams, &c.teamsList)
+	if err != nil {
+		log.Printf("Error in creating object from teams.json: %v: ", err)
+		return Config{}, err
+	}
 
 	return c, err
 }
