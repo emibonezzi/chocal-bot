@@ -1,72 +1,50 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
 func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	// initialize env vars and bot
 	c := loadConfig()
+	b := &Bot{Endpoint: c.apiEndpoint, Token: c.botToken}
 
+	// parse update coming from Telegram
 	var m NewMessageUpdate
 	err := json.Unmarshal([]byte(req.Body), &m)
 	if err != nil {
 		log.Printf("Failed to unmarshal update: %v", err)
 		return events.APIGatewayProxyResponse{
 			StatusCode: 500,
-			Body:       "Fail to unmarshal update",
+			Body:       "Failed to unmarshal update",
 		}, err
 	}
 
+	// greet user
 	if m.Message.Text == "/start" {
-		// send text
-		// create body struct and populate
-		type RequestBody struct {
-			ChatID int    `json:"chat_id"`
-			Text   string `json:"text"`
-		}
-		b := RequestBody{
-			ChatID: m.Message.Chat.ID,
-			Text:   fmt.Sprintf("Hello @%v", m.Message.From.Username),
-		}
-
-		// convert it to json
-		rb, err := json.Marshal(&b)
+		message, err := b.SendText(fmt.Sprintf("Hello @%v", m.Message.From.Username), m.Message.Chat.ID)
 		if err != nil {
-			log.Printf("Failed to marshal request body: %v", err)
+			log.Printf("Failed to make http request: %v", err)
 			return events.APIGatewayProxyResponse{
 				StatusCode: 500,
-				Body:       "Fail to marshal request body",
+				Body:       "Failed to make http request",
 			}, err
 		}
 
-		// create http request
-		response, err := http.Post(c.apiEndpoint, "application/json", bytes.NewReader(rb))
-		if err != nil {
-			log.Printf("Failed to create http request: %v", err)
+		if message.StatusCode != 200 {
+			log.Printf("Telegram returned an error: %v", message.StatusCode)
 			return events.APIGatewayProxyResponse{
-				StatusCode: 500,
-				Body:       "Fail to make request to telegram servers",
-			}, err
-		}
-		defer response.Body.Close()
-
-		if response.StatusCode != 200 {
-			log.Printf("Fail to make request to telegram servers: %v", response.Status)
-			return events.APIGatewayProxyResponse{
-				StatusCode: response.StatusCode,
-				Body:       "Fail to make request to telegram servers",
+				StatusCode: message.StatusCode,
+				Body:       "Telegram return an error",
 			}, err
 
 		}
-
 	}
 
 	return events.APIGatewayProxyResponse{
