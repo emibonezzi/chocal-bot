@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 
@@ -31,20 +30,9 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 			Body:       "Failed to initialize Telegram Bot"}, err
 	}
 
-	// parse update coming from Telegram
-	var m NewMessageUpdate
-	err = json.Unmarshal([]byte(req.Body), &m)
-	if err != nil {
-		log.Printf("Failed to unmarshal update: %v", err)
-		return events.APIGatewayProxyResponse{
-			StatusCode: 500,
-			Body:       "Failed to unmarshal update",
-		}, err
-	}
-
 	// greet user
-	if m.Message.Text == "/start" {
-		message, err := b.SendText(fmt.Sprintf("Hello @%v", m.Message.From.Username), m.Message.Chat.ID)
+	if b.currentMessage.text == "/start" {
+		message, err := b.GreetUser()
 		if err != nil {
 			log.Printf("Failed to send text: %v", err)
 			return events.APIGatewayProxyResponse{
@@ -60,6 +48,26 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 				Body:       "Telegram return an error",
 			}, err
 
+		}
+	}
+
+	// display teams to user
+	if b.currentMessage.text == "/list" {
+		message, err := b.DisplayTeams(c.teamsList)
+		if err != nil {
+			log.Printf("Error in displaying teams: %v", err)
+			return events.APIGatewayProxyResponse{
+				StatusCode: 500,
+				Body:       "Error in displaying teams",
+			}, err
+		}
+
+		if message.StatusCode != 200 {
+			log.Printf("Telegram returned an error: %v", message.Status)
+			return events.APIGatewayProxyResponse{
+				StatusCode: 500,
+				Body:       "Telegram returned an error",
+			}, err
 		}
 	}
 

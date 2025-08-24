@@ -13,6 +13,7 @@ type Bot struct {
 	telegramEndpoint string
 	botToken         string
 	currentUser      User
+	currentMessage   CurrentMessage
 }
 
 type User struct {
@@ -20,6 +21,10 @@ type User struct {
 	firstName string
 	lastName  string
 	username  string
+}
+
+type CurrentMessage struct {
+	text string
 }
 
 type NewMessageUpdate struct {
@@ -65,18 +70,25 @@ func InitializeBot(body string) (Bot, error) {
 		username:  m.Message.From.Username,
 	}
 
+	b.currentMessage = CurrentMessage{
+		text: m.Message.Text,
+	}
+
 	return b, err
 
 }
 
-func (b *Bot) SendText(text string, chatID int) (*http.Response, error) {
+func (b *Bot) GreetUser() (*http.Response, error) {
 	type RequestBody struct {
 		ChatID int    `json:"chat_id"`
 		Text   string `json:"text"`
 	}
+
+	greetingText := fmt.Sprintf("Hello %s! Welcome to ChoCal bot. ChoCal is a customizable Telegram Bot to get daily notifications about your favorite football ⚽ team(s)' fixtures. Use /list to see the list of available teams.", b.currentUser.firstName)
+
 	bs := RequestBody{
-		ChatID: chatID,
-		Text:   text,
+		ChatID: b.currentUser.id,
+		Text:   greetingText,
 	}
 
 	body, err := json.Marshal(&bs)
@@ -88,4 +100,55 @@ func (b *Bot) SendText(text string, chatID int) (*http.Response, error) {
 	url := fmt.Sprintf("%s/bot%s/sendMessage", b.telegramEndpoint, b.botToken)
 	payload := bytes.NewReader(body)
 	return http.Post(url, "application/json", payload)
+}
+
+func (b *Bot) DisplayTeams(list TeamsList) (*http.Response, error) {
+	type InlineKeyboardButton struct {
+		Text         string `json:"text"`
+		CallbackData string `json:"callback_data"`
+	}
+	type InlineKeyboardMarkup struct {
+		InlineKeyboard [][]InlineKeyboardButton `json:"inline_keyboard"`
+	}
+
+	type RequestBody struct {
+		ChatID      int                  `json:"chat_id"`
+		Text        string               `json:"text"`
+		ReplyMarkup InlineKeyboardMarkup `json:"reply_markup"`
+	}
+
+	buttons := make([]InlineKeyboardButton, 0, len(list.Teams))
+	mainArray := make([][]InlineKeyboardButton, 0, 1)
+
+	for _, t := range list.Teams {
+		b := InlineKeyboardButton{
+			Text:         fmt.Sprintf("%s %s", t.Emoji, t.Name),
+			CallbackData: t.Id,
+		}
+		buttons = append(buttons, b)
+	}
+
+	mainArray = append(mainArray, buttons)
+	inlineKeyboard := InlineKeyboardMarkup{
+		InlineKeyboard: mainArray,
+	}
+
+	body := RequestBody{
+		ChatID:      b.currentUser.id,
+		Text:        "Please select your favorite team to start receving notifications.",
+		ReplyMarkup: inlineKeyboard,
+	}
+
+	bs, err := json.Marshal(&body)
+	if err != nil {
+		log.Printf("Error in parsing reply markup body: %v", err)
+		return &http.Response{}, err
+	}
+
+	fmt.Print(string(bs))
+
+	url := fmt.Sprintf("%s/bot%s/sendMessage", b.telegramEndpoint, b.botToken)
+	payload := bytes.NewReader(bs)
+	return http.Post(url, "application/json", payload)
+
 }
