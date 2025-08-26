@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -20,8 +19,7 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 		}, err
 	}
 
-	fmt.Print(c.teamsList)
-
+	// load bot
 	b, err := InitializeBot(req.Body)
 	if err != nil {
 		log.Printf("Failed to initialize bot: %v", err)
@@ -29,6 +27,10 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 			StatusCode: 500,
 			Body:       "Failed to initialize Telegram Bot"}, err
 	}
+
+	// init db
+	db, err := LoadClient(ctx)
+	defer db.DisconnectClient(ctx)
 
 	// greet user
 	if b.currentMessage.text == "/start" {
@@ -48,6 +50,15 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 				Body:       "Telegram return an error",
 			}, err
 
+		}
+
+		// save user in db
+		_, err = db.SaveUser(ctx, b.currentUser.id)
+		if err != nil {
+			log.Printf("Error in saving user in db: %v", err)
+			return events.APIGatewayProxyResponse{
+				StatusCode: 500,
+				Body:       "Error in saving user in DB"}, err
 		}
 	}
 
