@@ -14,7 +14,7 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	if err != nil {
 		log.Printf("Failed to read teams.json: %v", err)
 		return events.APIGatewayProxyResponse{
-			StatusCode: 500,
+			StatusCode: 200, // to avoid telegram server retry
 			Body:       "Failed to read teams.json",
 		}, err
 	}
@@ -24,7 +24,7 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	if err != nil {
 		log.Printf("Failed to initialize bot: %v", err)
 		return events.APIGatewayProxyResponse{
-			StatusCode: 500,
+			StatusCode: 200,
 			Body:       "Failed to initialize Telegram Bot"}, err
 	}
 
@@ -38,7 +38,7 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 		if err != nil {
 			log.Printf("Failed to send text: %v", err)
 			return events.APIGatewayProxyResponse{
-				StatusCode: 500,
+				StatusCode: 200,
 				Body:       "Failed to send text",
 			}, err
 		}
@@ -57,7 +57,7 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 		if err != nil {
 			log.Printf("Error in saving user in db: %v", err)
 			return events.APIGatewayProxyResponse{
-				StatusCode: 500,
+				StatusCode: 200,
 				Body:       "Error in saving user in DB"}, err
 		}
 	}
@@ -68,7 +68,7 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 		if err != nil {
 			log.Printf("Error in displaying teams: %v", err)
 			return events.APIGatewayProxyResponse{
-				StatusCode: 500,
+				StatusCode: 200,
 				Body:       "Error in displaying teams",
 			}, err
 		}
@@ -76,7 +76,7 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 		if message.StatusCode != 200 {
 			log.Printf("Telegram returned an error: %v", message.Status)
 			return events.APIGatewayProxyResponse{
-				StatusCode: 500,
+				StatusCode: 200,
 				Body:       "Telegram returned an error",
 			}, err
 		}
